@@ -18,7 +18,9 @@ class Graphlet():
 
             G = graph.copy()   
 
-            srcIp_node = list(filter(lambda n : n[1]['type'] =='srcIP', list(G.nodes(data= True))))[0][0]
+            #srcIp_node = list(filter(lambda n : n[1]['type'] =='srcIP', list(G.nodes(data= True))))[0][0]
+            srcIp_node = list(G.nodes)[0] # to recheck
+
             datas = []
 
             significant_set = [node for (node, degree) in G.degree() if degree > 2]
