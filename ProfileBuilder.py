@@ -1,17 +1,67 @@
 import networkx as nx
 import csv
 import pandas as pd
-
+from itertools import permutations 
 
 class Graphlet():
 
-    def __init__(self,file):
-        self.end_host_lbls = {}  # for every endhost count of normal and anomaly flow
-        self.activity_graphlets = self.get_graphlets(file)
-        self.profile_graphlets = None
+    def __init__(self,file= None):
+        if file:
+            self.end_host_lbls = {}  # for every endhost count of normal and anomaly flow
+            self.activity_graphlets = self.get_graphlets(file)
+            self.profile_graphlets = self.build_graphlets_profile()
 
     def build_graphlets_profile(self):
-        pass
+        graphlets =[]
+
+        for graph in self.activity_graphlets:
+
+            G = graph.copy()   
+
+            srcIp_node = list(filter(lambda n : n[1]['type'] =='srcIP', list(G.nodes(data= True))))[0][0]
+            datas = []
+
+            significant_set = [node for (node, degree) in G.degree() if degree > 2]
+
+            protocols = list(filter(lambda n: n[1] =='protocol', list(G.nodes(data = 'type')))) 
+            dstIPs = list(filter(lambda n: n[1] =='dstIP', list(G.nodes(data = 'type')))) 
+
+
+            for protocol_node in protocols:
+                #print("Protocol: ", protocol_node)
+                add_protocol = False
+
+                for dstIp_node in G.neighbors(protocol_node[0]):
+                    #print("** dstIP: ", dstIp_node)
+                    add_dstIP = False 
+
+                    if dstIp_node in significant_set:
+                        add_protocol = True 
+                        add_dstIP = True
+
+
+                    for sPort_node in G.neighbors(dstIp_node):
+                       # print("*** sPort: ",sPort_node)
+
+                        if sPort_node in significant_set:
+                            add_protocol = True 
+                            add_dstIP = True
+
+
+                        for dPort_node in G.neighbors(sPort_node):
+
+                            if dPort_node in significant_set:
+                                add_protocol = True 
+                                add_dstIP = True
+
+
+                            for dstIP_ in G.neighbors(dPort_node):
+                                if add_dstIP:
+                                    datas.append([srcIp_node,dstIp_node,protocol_node[0], sPort_node, dPort_node, dstIP_])
+
+            graphlets.append(self.generate_graphlet(srcIp_node, datas))
+
+        return graphlets
 
     def get_graphlets_label(self, threshold=0):
         res = []
