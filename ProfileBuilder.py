@@ -86,6 +86,9 @@ class Graphlet():
                 res.append('anomaly')
             else:
                 res.append('normal')
+        
+        res = [x for _, x in sorted(zip(self.end_host_lbls.keys(),res), key=lambda pair: pair[0])]
+        
         return res
 
 
