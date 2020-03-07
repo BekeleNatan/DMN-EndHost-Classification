@@ -8,8 +8,10 @@ class Graphlet():
     def __init__(self,file= None):
         if file:
             self.end_host_lbls = {}  # for every endhost count of normal and anomaly flow
-            self.activity_graphlets = self.get_graphlets(file)
-            self.profile_graphlets = self.build_graphlets_profile()
+            #self.activity_graphlets = self.get_graphlets(file)
+            #self.profile_graphlets = self.build_graphlets_profile()
+            self.activity_graphlets = sorted(self.get_graphlets(file), key = lambda g: list(filter(lambda n : n[1]['type'] =='srcIP', list(g.nodes(data= True))))[0][0])
+            self.profile_graphlets = sorted(self.build_graphlets_profile(), key = lambda g: list(filter(lambda n : n[1]['type'] =='srcIP', list(g.nodes(data= True))))[0][0])
 
     def build_graphlets_profile(self):
         graphlets =[]
@@ -18,8 +20,9 @@ class Graphlet():
 
             G = graph.copy()   
 
-            #srcIp_node = list(filter(lambda n : n[1]['type'] =='srcIP', list(G.nodes(data= True))))[0][0]
-            srcIp_node = list(G.nodes)[0] # to recheck
+            srcIp_node = list(filter(lambda n : n[1]['type'] =='srcIP', list(G.nodes(data= True))))[0][0]
+            #srcIP = list(filter(lambda n: n[1] =='srcIP', list(G.nodes(data = 'type')))) 
+            #srcIp_node = list(G.nodes)[0] # to recheck
 
             datas = []
 
@@ -59,9 +62,18 @@ class Graphlet():
 
                             for dstIP_ in G.neighbors(dPort_node):
                                 if add_dstIP:
-                                    datas.append([srcIp_node,dstIp_node,protocol_node[0], sPort_node, dPort_node, dstIP_])
+                                    datas.append([srcIp_node,dstIp_node,protocol_node[0], sPort_node, dPort_node])
 
             graphlets.append(self.generate_graphlet(srcIp_node, datas))
+        
+        for activity_g, prof_g in zip(self.activity_graphlets, graphlets):
+            true_edges = activity_g.edges.data()
+            edges_to_remove = []
+            for edge in prof_g.edges.data():
+                if edge not in true_edges:
+                    edges_to_remove.append(edge)
+            #print(edges_to_remove)
+            prof_g.remove_edges_from(edges_to_remove)
 
         return graphlets
 
@@ -115,11 +127,17 @@ class Graphlet():
 
     def add_edges_to_graphlet(self,G, src_ip, data_list):
         for data in data_list:
-            src_ip = data[0]
-            dst_ip = data[1]
-            protocol = data[2]
-            s_port = data[3]
-            d_port = '_' + data[4]
+            src_ip =  data[0]
+            if not data[1].startswith('di'):
+                dst_ip = 'di' + data[1]
+                protocol = 'pr' +  data[2]
+                s_port = 'sp' + data[3]
+                d_port = 'dp' + data[4]
+            else:
+                dst_ip =  data[1]
+                protocol =   data[2]
+                s_port =  data[3]
+                d_port = data[4]
 
             G.add_edge(src_ip, protocol)
             G.add_edge(protocol, dst_ip)
@@ -142,22 +160,36 @@ class Graphlet():
             protocol_set.add(data[2])
             sport_set.add(data[3])
             dport_set.add(data[4])
-
+        
         G.add_node(src_ip, type='srcIP')
+        
 
         for dst_ip in dst_ip_set:
-            G.add_node(dst_ip, type='dstIP')
-            G.add_node('_' + dst_ip, type='dstIP')
+            if not dst_ip.startswith('di'):
+                G.add_node('di' + dst_ip, type='dstIP')
+                G.add_node('_di' + dst_ip, type='_dstIP')
+            else:
+                G.add_node(dst_ip, type='dstIP')
+                G.add_node('_' + dst_ip, type='_dstIP')
 
         for protocol in protocol_set:
-            G.add_node(protocol, type='protocol')
+            if not protocol.startswith('pr'):
+                G.add_node('pr' + protocol, type='protocol')
+            else:
+                G.add_node(protocol, type='protocol')
 
         for sport in sport_set:
-            G.add_node(sport, type='sPort')
+            if not sport.startswith('sp'):
+                G.add_node('sp' + sport, type='sPort')
+            else:
+                G.add_node(sport, type='sPort')
 
         for dport in dport_set:
-            G.add_node('_' + dport, type='dPort')
-
+            if not dport.startswith('dp'):
+                G.add_node('dp' + dport, type='dPort')
+            else:
+                G.add_node(dport, type='dPort')        
+      
         return G
 
 
@@ -177,7 +209,7 @@ class Graphlet():
         src_ip_set, data_list = self.get_infos(file)
 
         for src_ip in src_ip_set:
-            data_src_ip = self.filter_data(src_ip, data_list)
+            data_src_ip = self.filter_data(src_ip, data_list)            
             graphlets.append(self.generate_graphlet(src_ip, data_src_ip))
 
         return graphlets
