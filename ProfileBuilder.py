@@ -5,7 +5,8 @@ from itertools import permutations
 
 class Graphlet():
 
-    def __init__(self,file= None):
+    def __init__(self,file= None, test= False):
+        self.test = test
         if file:
             self.end_host_lbls = {}  # for every endhost count of normal and anomaly flow
             #self.activity_graphlets = self.get_graphlets(file)
@@ -105,14 +106,16 @@ class Graphlet():
 
         for row in csv_reader:
             src_ip_set.add(row[0])
-            data.append([row[0], row[1], row[2], row[3], row[4], row[5]])
-            if row[0] in self.end_host_lbls.keys():
-                if row[5] in self.end_host_lbls[row[0]]:
-                    self.end_host_lbls[row[0]][row[5]] += 1
+            l = [row[0], row[1], row[2], row[3], row[4], row[5]] if not self.test else [row[0], row[1], row[2], row[3], row[4]]
+            data.append(l)
+            if not self.test:
+                if row[0] in self.end_host_lbls.keys():
+                    if row[5] in self.end_host_lbls[row[0]]:
+                        self.end_host_lbls[row[0]][row[5]] += 1
+                    else:
+                        self.end_host_lbls[row[0]][row[5]] = 1
                 else:
-                    self.end_host_lbls[row[0]][row[5]] = 1
-            else:
-                self.end_host_lbls[row[0]] = {row[5]:1}
+                    self.end_host_lbls[row[0]] = {row[5]:1}
 
         return src_ip_set, data
 
